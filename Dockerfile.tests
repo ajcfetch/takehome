@@ -1,0 +1,30 @@
+# Use the official .NET SDK image
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+
+# Set working directory inside container
+WORKDIR /app
+
+# Copy only the project files first to optimize caching
+COPY FetchReceiptProcessor/*.csproj ./FetchReceiptProcessor/
+COPY FetchReceiptProcessor.Tests/*.csproj ./FetchReceiptProcessor.Tests/
+
+# Restore dependencies for both projects
+RUN dotnet restore FetchReceiptProcessor.Tests/FetchReceiptProcessor.Tests.csproj
+
+# Copy the rest of the application source code
+COPY . ./
+
+# Set the working directory to the test project
+WORKDIR /app/FetchReceiptProcessor.Tests
+
+# Ensure the package cache is updated
+RUN dotnet nuget locals all --clear
+
+# Re-run restore to ensure everything is resolved
+RUN dotnet restore FetchReceiptProcessor.Tests.csproj
+
+# Build the test project
+RUN dotnet build -c Release --no-restore
+
+# Run the tests
+CMD ["dotnet", "test", "-c", "Release", "--no-build", "--logger:trx"]
